@@ -15,13 +15,13 @@ namespace DirectClient
 
             var bus = Bus.Factory.CreateUsingRabbitMq(cfg =>
             {
-                var host = cfg.Host("localhost", "/");
+                cfg.Host("localhost", "/");
 
                 cfg.ConfigureMessageTopology();
 
-                cfg.ReceiveEndpoint(host, $"direct.client.{nodeId}", endpoint =>
+                cfg.ReceiveEndpoint($"direct.client.{nodeId}", endpoint =>
                 {
-                    endpoint.BindMessageExchanges = false;
+                    endpoint.ConfigureConsumeTopology = false;
 
                     endpoint.Bind<ContentReceived>(x =>
                     {

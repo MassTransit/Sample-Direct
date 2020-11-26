@@ -11,11 +11,11 @@ namespace DirectServer
         {
             var bus = Bus.Factory.CreateUsingRabbitMq(cfg =>
             {
-                var host = cfg.Host("localhost", "/");
+                cfg.Host("localhost", "/");
 
                 cfg.ConfigureMessageTopology();
 
-                cfg.ReceiveEndpoint(host, "direct.server", endpoint =>
+                cfg.ReceiveEndpoint("direct.server", endpoint =>
                 {
                     endpoint.Handler<ClientAvailable>(async context =>
                     {
