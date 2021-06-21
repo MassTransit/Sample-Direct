@@ -1,21 +1,25 @@
-using MassTransit.RabbitMqTransport;
-using RabbitMQ.Client;
-
 namespace Contracts
 {
+    using MassTransit;
+    using MassTransit.RabbitMqTransport;
+    using RabbitMQ.Client;
+
+
     public static class ConfigurationExtensions
     {
         public static void ConfigureMessageTopology(this IRabbitMqBusFactoryConfigurator configurator)
         {
-            configurator.Message<ContentReceived>(c => c.SetEntityName("content.received"));
-//            configurator.Send<ContentReceived>(c =>
-//            {
-//                c.UseCorrelationId(m => m.Id);
-//                c.UseRoutingKeyFormatter(f => f.Message.AgentId);
-//            });
+            configurator.Message<ContentReceived>(x => x.SetEntityName("content.received"));
+            configurator.Send<ContentReceived>(x =>
+            {
+                x.UseCorrelationId(context => context.Id);
+                x.UseRoutingKeyFormatter(context => context.Message.NodeId);
+            });
 
-
-            configurator.Publish<ContentReceived>(c => { c.ExchangeType = ExchangeType.Direct; });
+            configurator.Publish<ContentReceived>(x =>
+            {
+                x.ExchangeType = ExchangeType.Direct;
+            });
         }
     }
 }

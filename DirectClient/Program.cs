@@ -1,54 +1,54 @@
-﻿using System;
-using System.Diagnostics;
-using System.Threading.Tasks;
-using Contracts;
-using MassTransit;
-using RabbitMQ.Client;
-
-namespace DirectClient
+﻿namespace DirectClient
 {
-    class Program
+    using System;
+    using System.Reflection;
+    using System.Threading.Tasks;
+    using Contracts;
+    using MassTransit;
+    using Microsoft.Extensions.DependencyInjection;
+    using Microsoft.Extensions.Hosting;
+
+
+    public class Program
     {
-        static async Task Main()
+        static bool? _isRunningInContainer;
+
+        static bool IsRunningInContainer =>
+            _isRunningInContainer ??= bool.TryParse(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), out var inDocker) && inDocker;
+
+        public static async Task Main(string[] args)
         {
-            var nodeId = Process.GetCurrentProcess().Id.ToString();
+            await CreateHostBuilder(args).Build().RunAsync();
+        }
 
-            var bus = Bus.Factory.CreateUsingRabbitMq(cfg =>
-            {
-                cfg.Host("localhost", "/");
-
-                cfg.ConfigureMessageTopology();
-
-                cfg.ReceiveEndpoint($"direct.client.{nodeId}", endpoint =>
+        public static IHostBuilder CreateHostBuilder(string[] args)
+        {
+            return Host.CreateDefaultBuilder(args)
+                .ConfigureServices((hostContext, services) =>
                 {
-                    endpoint.ConfigureConsumeTopology = false;
+                    services.AddOptions<NodeOptions>();
 
-                    endpoint.Bind<ContentReceived>(x =>
+                    services.AddMassTransit(x =>
                     {
-                        x.RoutingKey = nodeId;
-                        x.ExchangeType = ExchangeType.Direct;
+                        x.SetKebabCaseEndpointNameFormatter();
+
+                        var entryAssembly = Assembly.GetEntryAssembly();
+
+                        x.AddConsumers(entryAssembly);
+
+                        x.UsingRabbitMq((context, cfg) =>
+                        {
+                            cfg.Host(IsRunningInContainer ? "rabbitmq" : "localhost", "/");
+
+                            cfg.ConfigureMessageTopology();
+
+                            cfg.ConfigureEndpoints(context);
+                        });
                     });
 
-                    endpoint.Handler<ContentReceived>(async context => { Console.WriteLine("Content Received: {0}", context.Message.Id); });
+                    services.AddMassTransitHostedService(true);
+                    services.AddHostedService<StartupService>();
                 });
-            });
-
-            await bus.StartAsync();
-            try
-            {
-                await bus.Publish<ClientAvailable>(new {NodeId = nodeId});
-
-                await Task.Run(() =>
-                {
-                    Console.WriteLine("Started, enter to quit");
-
-                    Console.ReadLine();
-                });
-            }
-            finally
-            {
-                await bus.StopAsync();
-            }
         }
     }
 }

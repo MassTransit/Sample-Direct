@@ -1,46 +1,50 @@
-﻿using System;
-using System.Threading.Tasks;
-using Contracts;
-using MassTransit;
-
-namespace DirectServer
+﻿namespace DirectServer
 {
-    class Program
+    using System;
+    using System.Reflection;
+    using System.Threading.Tasks;
+    using Contracts;
+    using MassTransit;
+    using Microsoft.Extensions.Hosting;
+
+
+    public class Program
     {
-        static async Task Main()
+        static bool? _isRunningInContainer;
+
+        static bool IsRunningInContainer =>
+            _isRunningInContainer ??= bool.TryParse(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), out var inDocker) && inDocker;
+
+        public static async Task Main(string[] args)
         {
-            var bus = Bus.Factory.CreateUsingRabbitMq(cfg =>
-            {
-                cfg.Host("localhost", "/");
+            await CreateHostBuilder(args).Build().RunAsync();
+        }
 
-                cfg.ConfigureMessageTopology();
-
-                cfg.ReceiveEndpoint("direct.server", endpoint =>
+        public static IHostBuilder CreateHostBuilder(string[] args)
+        {
+            return Host.CreateDefaultBuilder(args)
+                .ConfigureServices((hostContext, services) =>
                 {
-                    endpoint.Handler<ClientAvailable>(async context =>
+                    services.AddMassTransit(x =>
                     {
-                        await context.Publish<ContentReceived>(new
+                        x.SetKebabCaseEndpointNameFormatter();
+
+                        var entryAssembly = Assembly.GetEntryAssembly();
+
+                        x.AddConsumers(entryAssembly);
+
+                        x.UsingRabbitMq((context, cfg) =>
                         {
-                            Id = NewId.NextGuid(),
-                        }, x => x.SetRoutingKey(context.Message.NodeId));
+                            cfg.Host(IsRunningInContainer ? "rabbitmq" : "localhost", "/");
+
+                            cfg.ConfigureMessageTopology();
+
+                            cfg.ConfigureEndpoints(context);
+                        });
                     });
-                });
-            });
 
-            await bus.StartAsync();
-            try
-            {
-                await Task.Run(() =>
-                {
-                    Console.WriteLine("Started, enter to quit");
-
-                    Console.ReadLine();
+                    services.AddMassTransitHostedService(true);
                 });
-            }
-            finally
-            {
-                await bus.StopAsync();
-            }
         }
     }
 }
