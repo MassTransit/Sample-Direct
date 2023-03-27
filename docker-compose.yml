@@ -8,8 +8,10 @@ services:
   server:
     image: sample/directserver
     build:
+      context: ./
       dockerfile: Dockerfile.server
   client:
     image: sample/directclient
     build:
+      context: ./
       dockerfile: Dockerfile.client
