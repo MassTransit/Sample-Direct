@@ -1,13 +1,13 @@
 namespace DirectClient
 {
-    using System.Diagnostics;
+    using System;
 
 
     public class NodeOptions
     {
         public NodeOptions()
         {
-            NodeId = Process.GetCurrentProcess().Id.ToString();
+            NodeId = Random.Shared.Next(500000).ToString();
         }
 
         public string NodeId { get; }

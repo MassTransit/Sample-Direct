@@ -4,9 +4,6 @@ namespace DirectServer
     using Contracts;
     using DirectClient;
     using MassTransit;
-    using MassTransit.ConsumeConfigurators;
-    using MassTransit.Definition;
-    using MassTransit.RabbitMqTransport;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
     using RabbitMQ.Client;

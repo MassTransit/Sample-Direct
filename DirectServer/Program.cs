@@ -5,16 +5,13 @@
     using System.Threading.Tasks;
     using Contracts;
     using MassTransit;
+    using MassTransit.Metadata;
+    using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Hosting;
 
 
     public class Program
     {
-        static bool? _isRunningInContainer;
-
-        static bool IsRunningInContainer =>
-            _isRunningInContainer ??= bool.TryParse(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), out var inDocker) && inDocker;
-
         public static async Task Main(string[] args)
         {
             await CreateHostBuilder(args).Build().RunAsync();
@@ -35,15 +32,26 @@
 
                         x.UsingRabbitMq((context, cfg) =>
                         {
-                            cfg.Host(IsRunningInContainer ? "rabbitmq" : "localhost", "/");
+                            cfg.Host(HostMetadataCache.IsRunningInContainer ? "rabbitmq" : "localhost", "/");
 
                             cfg.ConfigureMessageTopology();
 
                             cfg.ConfigureEndpoints(context);
                         });
                     });
-
-                    services.AddMassTransitHostedService(true);
+                    services.AddOptions<MassTransitHostOptions>()
+                        .Configure(options =>
+                        {
+                            options.WaitUntilStarted = true;
+                            options.StartTimeout = TimeSpan.FromSeconds(30);
+                            options.StopTimeout = TimeSpan.FromSeconds(60);
+                        });
+                    services.AddOptions<HostOptions>()
+                        .Configure(options =>
+                        {
+                            options.StartupTimeout = TimeSpan.FromSeconds(60);
+                            options.ShutdownTimeout = TimeSpan.FromSeconds(60);
+                        });
                 });
         }
     }

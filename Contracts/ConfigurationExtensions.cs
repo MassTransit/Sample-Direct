@@ -1,7 +1,6 @@
 namespace Contracts
 {
     using MassTransit;
-    using MassTransit.RabbitMqTransport;
     using RabbitMQ.Client;
 
 

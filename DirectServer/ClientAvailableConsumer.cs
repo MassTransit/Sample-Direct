@@ -3,7 +3,6 @@ namespace DirectServer
     using System.Threading.Tasks;
     using Contracts;
     using MassTransit;
-    using MassTransit.Definition;
 
 
     public class ClientAvailableConsumer :
